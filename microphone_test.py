@@ -5,7 +5,7 @@ from scipy.signal import resample
 
 duration = 3
 sample_rate = 16000  # native for ALC287
-device_index = 5     # your analog mic
+device_index = 8    # your analog mic
 
 print("🎙️ Using device:", sd.query_devices(device_index)['name'])
 print("🎙️ Speak now...")

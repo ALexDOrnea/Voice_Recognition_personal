@@ -44,8 +44,8 @@ def transcribe_stream():
             text=result["text"].strip()
 
             #printare text
-            if text:
-                print(text)
+            #if text:
+            print(text)
 
             #stergere fisiere
             os.remove(tmpfile.name)
