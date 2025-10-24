@@ -20,8 +20,10 @@ DEVICE_INDEX = None      # use default input
 # ================================
 # MODEL INITIALIZATION
 # ================================
-device = "cpu" if torch.cuda.is_available() else "cpu"
-compute_type = "float16" if device == "cuda" else "int8"
+#device = "cuda" if torch.cuda.is_available() else "cpu"
+#compute_type = "float16" if device == "cuda" else "int8"
+device ="cpu"; compute_type="int8"
+
 
 print(f"Loading Faster-Whisper model '{MODEL_NAME}' on {device} ({compute_type})...")
 model = WhisperModel(MODEL_NAME, device=device, compute_type=compute_type)

@@ -36,7 +36,7 @@ def audio_callback(indata, frames, time_info, status):
 # TRANSCRIPTION THREAD
 # ================================
 def transcribe_stream():
-    print("🔊 Transcribing audio stream...\n")
+    print("Transcribing audio stream...\n")
     while True:
         audio_chunk = audio_queue.get()
         if audio_chunk is None:
@@ -51,7 +51,7 @@ def transcribe_stream():
             )
             text = result["text"].strip()
             if text:
-                print(f"🗣️  {text}")
+                print(f"{text}")
         except Exception as e:
             print("Transcription error:", e)
 
@@ -71,11 +71,11 @@ with stream:
     transcribe_thread = threading.Thread(target=transcribe_stream, daemon=True)
     transcribe_thread.start()
 
-    print("🎙️ Listening... Press Ctrl+C to stop.\n")
+    print("Listening... Press Ctrl+C to stop.\n")
 
     try:
         while True:
             pass
     except KeyboardInterrupt:
-        print("\n🛑 Exiting...")
+        print("\nExiting...")
         audio_queue.put(None)
