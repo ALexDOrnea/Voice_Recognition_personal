@@ -1,3 +1,4 @@
+# voice_assistant.py
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -6,6 +7,8 @@ import numpy as np
 import queue
 import threading
 import time
+import webbrowser
+import os
 from faster_whisper import WhisperModel
 from collections import deque
 
@@ -17,8 +20,7 @@ SAMPLE_RATE = 16000
 CHUNK_DURATION = 0.5
 PAUSE_THRESHOLD = 1.0
 MIN_COMMAND_DURATION = 1.0
-DEVICE_INDEX = None
-WAKE_WORD_DELAY = 1.5
+DEVICE_INDEX = None  # schimbă cu 8 dacă e nevoie
 
 # ================================
 # BEEP
@@ -45,20 +47,19 @@ command_buffer = []
 recording = False
 wake_detected = False
 last_speech_time = time.time()
-command_start_delay = 0.0  # <--- NOU
 buffer_lock = threading.Lock()
 
 # ================================
-# VAD
+# VAD (energie)
 # ================================
 def is_speech(chunk, threshold=0.01):
     return np.mean(np.abs(chunk)) > threshold
 
 # ================================
-# WAKE WORD
+# WAKE WORD (o singură dată)
 # ================================
 def detect_wake_word():
-    global wake_detected, recording, command_buffer, command_start_delay
+    global wake_detected, recording, command_buffer
     if wake_detected or len(rolling_buffer) < SAMPLE_RATE:
         return
 
@@ -72,7 +73,6 @@ def detect_wake_word():
             wake_detected = True
             recording = True
             command_buffer = list(audio[-int(SAMPLE_RATE * 1):])
-            command_start_delay = time.time() + WAKE_WORD_DELAY  # <--- 1.5s pauză
             print(f"\n[WAKE WORD DETECTED: {WAKE_WORD.upper()}]")
             threading.Thread(target=play_beep, daemon=True).start()
             with buffer_lock:
@@ -90,12 +90,54 @@ def audio_callback(indata, frames, time_info, status):
     audio_queue.put(chunk)
 
 # ================================
+# EXECUTE COMMAND
+# ================================
+def execute_command(text):
+    text = text.lower().strip()
+
+    if "youtube" in text or "open youtube" in text:
+        webbrowser.open("https://youtube.com")
+        print("Opening YouTube...")
+    elif "google" in text or "search" in text:
+        webbrowser.open("https://google.com")
+        print("Opening Google...")
+    elif "notepad" in text or "open notepad" in text:
+        os.system("notepad")
+        print("Opening Notepad...")
+    elif "calculator" in text or "calc" in text:
+        os.system("calc")
+        print("Opening Calculator...")
+    elif "time" in text or "what time" in text:
+        from datetime import datetime
+        now = datetime.now().strftime("%H:%M")
+        print(f"Current time: {now}")
+    else:
+        print(f"Command not recognized: {text}")
+
+# ================================
+# TRANSCRIBE & EXECUTE
+# ================================
+def transcribe_command():
+    if not command_buffer:
+        return
+    audio = np.array(command_buffer, dtype=np.float32)
+    print("Transcribing command...")
+    try:
+        segments, _ = model.transcribe(audio, language="en", beam_size=5, temperature=0.0)
+        text = " ".join(s.text for s in segments).strip()
+        if text:
+            print(f"Command: {text}")
+            execute_command(text)  # AICI SE EXECUTĂ COMANDA
+    except Exception as e:
+        print("Error:", e)
+
+# ================================
 # WORKER
 # ================================
 def worker():
-    global recording, last_speech_time, command_buffer, wake_detected, command_start_delay
+    global recording, last_speech_time, command_buffer, wake_detected
 
-    print("Say 'GARMIN' to activate... (you have 1.5s after beep)\n")
+    print("Say 'GARMIN' to activate...\n")
 
     while True:
         chunk = audio_queue.get()
@@ -109,20 +151,11 @@ def worker():
             threading.Thread(target=detect_wake_word, daemon=True).start()
 
         if wake_detected:
-            current_time = time.time()
-
-            # === PAUZĂ DE 1.5s DUPĂ BEEP ===
-            if current_time < command_start_delay:
-                last_speech_time = current_time  # ține VAD-ul activ
-                command_buffer.extend(chunk)
-                continue  # nu verifica pauza încă
-
-            # === DUPĂ 1.5s: începe VAD-ul normal ===
             command_buffer.extend(chunk)
             if is_speech(chunk):
-                last_speech_time = current_time
+                last_speech_time = time.time()
             else:
-                if current_time - last_speech_time > PAUSE_THRESHOLD:
+                if time.time() - last_speech_time > PAUSE_THRESHOLD:
                     if len(command_buffer) > SAMPLE_RATE * MIN_COMMAND_DURATION:
                         transcribe_command()
                     command_buffer.clear()
@@ -136,22 +169,6 @@ def worker():
                 recording = False
 
 # ================================
-# TRANSCRIBE
-# ================================
-def transcribe_command():
-    if not command_buffer:
-        return
-    audio = np.array(command_buffer, dtype=np.float32)
-    print("Transcribing command...")
-    try:
-        segments, _ = model.transcribe(audio, language="en", beam_size=5, temperature=0.0)
-        text = " ".join(s.text for s in segments).strip()
-        if text:
-            print(f"Command: {text}")
-    except Exception as e:
-        print("Error:", e)
-
-# ================================
 # MAIN
 # ================================
 stream = sd.InputStream(
@@ -163,7 +180,7 @@ stream = sd.InputStream(
     device=DEVICE_INDEX
 )
 
-print("Voice Assistant STARTED.\n")
+print("Voice Assistant STARTED. Say 'GARMIN open YouTube'...\n")
 
 with stream:
     t = threading.Thread(target=worker, daemon=True)
