@@ -13,7 +13,7 @@ print(torch.version.cuda)
 # ================================
 MODEL_NAME = "tiny.en"
 SAMPLE_RATE = 16000
-CHUNK_DURATION = 1       # seconds of audio collected per callback
+CHUNK_DURATION = 1     # seconds of audio collected per callback
 BUFFER_DURATION = 5      # seconds of rolling buffer for context
 DEVICE_INDEX = None      # use default input
 
@@ -23,8 +23,6 @@ DEVICE_INDEX = None      # use default input
 #device = "cuda" if torch.cuda.is_available() else "cpu"
 #compute_type = "float16" if device == "cuda" else "int8"
 device ="cpu"; compute_type="int8"
-
-
 print(f"Loading Faster-Whisper model '{MODEL_NAME}' on {device} ({compute_type})...")
 model = WhisperModel(MODEL_NAME, device=device, compute_type=compute_type)
 
