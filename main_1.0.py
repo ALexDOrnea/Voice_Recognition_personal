@@ -72,8 +72,13 @@ def detect_wake_word():
             command_start_delay=time.time()+WAKE_WORD_DELAY # pauza de 1.5s
             print(f"[WAKE WORD DETECTED: {WAKE_WORD.upper()}]")
             threading.Thread(target=play_beep,daemon=True).start()
+
+            #reseteaza bufferul si coada pentru a inregistra doar comanda
             with buffer_lock:
-                rolling_buffer.clear()  #reseteaza bufferul
+                rolling_buffer.clear()
+            with audio_queue.mutex:  # sterge continutul cozii in siguranta
+                audio_queue.queue.clear()
+
     except Exception as e:
         print("Wake error:", e)
 
@@ -142,9 +147,17 @@ def transcribe_command():
     print("Transcribing command...")
     try:
         segments,_=model.transcribe(audio,language="en",beam_size=5,temperature=0.0)
-        text = " ".join(s.text for s in segments).strip()
-        if text:
+        text = " ".join(s.text for s in segments).strip().lower()
+
+        # elimina cuvantul de activare din textul final
+        text = text.replace(WAKE_WORD.lower(), "").strip()
+
+        # daca textul este gol dupa eliminare
+        if not text:
+            print("Command empty")
+        else:
             print(f"Command: {text}")
+
     except Exception as e:
         print("Error:", e)
 
