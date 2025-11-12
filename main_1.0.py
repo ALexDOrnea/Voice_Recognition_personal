@@ -1,6 +1,9 @@
 import warnings  #avertismente
 #warnings.filterwarnings("ignore")  # dezactiveaza avertistemte
 
+from command_matcher import load_commands, find_best_match
+import subprocess
+
 import sounddevice as sd  #utilizare microfon
 import numpy as np         #array-uri audio
 import queue               #coada de seqmente audio
@@ -8,6 +11,10 @@ import threading           #creaza threaduri intre inregistrare si transcribe
 import time                #pentru delay
 from faster_whisper import WhisperModel  #whisper mai rapid
 from collections import deque            #coada double-end
+
+import os
+print("Current working dir:", os.getcwd())
+print("Commands file exists:", os.path.exists("commands.csv"))
 
 # SETTINGS
 WAKE_WORD="garmin"
@@ -31,6 +38,11 @@ def play_beep():
 #MODEL
 print("Loading whisper...")
 model=WhisperModel("tiny.en",device="cuda",compute_type="float16") ## device="cuda"/"cpu",compute_type="float16"/"int8" -pt gpu
+
+
+# Load commands from CSV
+commands = load_commands("commands.csv")
+print("Loaded commands:", commands)
 
 #VARIABILE GLOBALE
 audio_queue=queue.Queue()  #Coada arrayuri
@@ -131,7 +143,7 @@ def worker():
                     wake_detected = False
                     recording = False
 
-            #dacă comanda dureaza prea mult (>15 sec) o finalizează automat
+            #daca comanda dureaza prea mult (>15 sec) o finalizează automat
             if len(command_buffer)>SAMPLE_RATE*15:
                 transcribe_command()
                 command_buffer.clear()
@@ -158,8 +170,35 @@ def transcribe_command():
         else:
             print(f"Command: {text}")
 
+            result = find_best_match(text, commands)
+            if result:
+                matched_cmd, score = result
+                print(f"[MATCH] {matched_cmd} (score={score:.1f})")
+                execute_command(matched_cmd)
+            else:
+                print("No matching command found.")
+
+
     except Exception as e:
         print("Error:", e)
+
+
+def execute_command(cmd_key):
+    """Executa comanda corespunzătoare în Linux"""
+    try:
+        if cmd_key == "open_chrome":
+            subprocess.Popen(["google-chrome"])
+        elif cmd_key == "open_firefox":
+            subprocess.Popen(["firefox"])
+        elif cmd_key == "open_spotify":
+            subprocess.Popen(["spotify"])
+        elif cmd_key == "open_terminal":
+            subprocess.Popen(["gnome-terminal"])  # sau 'konsole', 'xterm', depinde de sistem
+        else:
+            print(f"No action defined for: {cmd_key}")
+    except Exception as e:
+        print("Execution error:", e)
+
 
 
 # MAIN
