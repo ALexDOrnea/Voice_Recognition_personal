@@ -165,7 +165,7 @@ On the Raspberry Pi, the Mosquitto broker needs to be activated:
 sudo systemctl enable mosquitto
 sudo systemctl start mosquitto
 ```
-
+All the code that should be on the Raspberry for the project to work is in the **RPi_code** directory.
 Run subscriber on the Raspberry:
 
 ```
